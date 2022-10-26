@@ -1,24 +1,22 @@
 import { Injectable, NestMiddleware, HttpException, HttpStatus } from "@nestjs/common"
 import { Request, Response, NextFunction } from "express"
 import * as jwt from "jsonwebtoken"
+import { jwtConfig } from "../configs/jwt.config"
 import { User } from "../models/user.model"
 
-interface AccessTokenPayload {
+interface RefreshTokenPayload {
     _id: string
-    login: string
 }
 
 @Injectable()
-export class AuthMiddleware implements NestMiddleware {
+export class TokenRefreshMiddleware implements NestMiddleware {
     async use(req: Request, res: Response, next: NextFunction) {
-        const bearer = req.headers["authorization"]
+        const token = req.cookies[jwtConfig.cookieName]
 
-        if(bearer) {
-            if(/Bearer ([a-zA-Z0-9_=]+)\.([a-zA-Z0-9_=]+)\.([a-zA-Z0-9_\-\+\/=]*)/.test(bearer)) {
-                const token = bearer.match(/([a-zA-Z0-9_=]+)\.([a-zA-Z0-9_=]+)\.([a-zA-Z0-9_\-\+\/=]*)/g)[0]
-                
+        if(token) {
+            if(/([a-zA-Z0-9_=]+)\.([a-zA-Z0-9_=]+)\.([a-zA-Z0-9_\-\+\/=]*)/.test(token)) {
                 try {
-                    const payload = jwt.decode(token) as AccessTokenPayload
+                    const payload = jwt.decode(token) as RefreshTokenPayload
                     const user = await User.findById(payload._id)
 
                     if(user) {
@@ -29,11 +27,11 @@ export class AuthMiddleware implements NestMiddleware {
                 }
                 catch(e: any) {
                     if(e instanceof HttpException) throw e
-                    throw new HttpException("Access token format is invalid", HttpStatus.BAD_REQUEST)
+                    throw new HttpException("Refresh token format is invalid", HttpStatus.BAD_REQUEST)
                 }
             }
-            else throw new HttpException("Authorization header format is invalid", HttpStatus.BAD_REQUEST)
+            else throw new HttpException("Refresh token format is invalid", HttpStatus.BAD_REQUEST)
         }
-        else throw new HttpException("Authorization header not found", HttpStatus.NOT_FOUND)
+        else throw new HttpException("Refresh cookie not found", HttpStatus.NOT_FOUND)
     }
 }
